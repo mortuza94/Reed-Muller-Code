@@ -1,7 +1,7 @@
 
 function Test
-r = 2;
-m = 5;
+r = 1;
+m = 4;
 N = 2^m;
 ecr = 2^(m-r)/2-1; % error correcting radius of RM(r,m) code
 [~, ~, C] = GenerateCodewordsRM(r,m);

@@ -17,9 +17,13 @@ classdef RM
         cosetRep;
     end
     methods
-        %%%%%%%%%%%%%%%%%%%%%%%% CONSTRUCTOR METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%% CONSTRUCTOR METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
         function obj = RM(r, m)
-            if (r==2) && (m==4)
+            if (r==-1)
+                obj= obj.init_1(m);
+            elseif (r==0)
+                obj = obj.init_0(m);
+            elseif (r==2) && (m==4)
                 obj = obj.init1611();
             elseif (r==1) && (m==4)
                 obj = obj.init1605();
@@ -35,64 +39,55 @@ classdef RM
                 obj = obj.init1611();
             end
         end
-        %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
-        function [point, d] = decodeUpdated(obj, x)           
-            W = obj.edgeLabelLength;
-            S = zeros(obj.noOfNodePerStage, obj.edgeLabelLength);    
-            E = zeros(obj.noOfNodePerStage,1);
-            for i=1:obj.noOfStage
-                tx = repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1);
-                T = mod(tx + obj.cosetRep,2);
-                for j=1:obj.noOfNodePerStage
-                    [v, d] = decode(obj.baseRM, T(j,:));
-                    E(j) = d;
-                    S(j,:) = v;
-                end
-                obj.nodeCost(:,i) = E;
-                obj.edgeLabel(:,:,i) = mod(S + obj.cosetRep,2);                
-            end
-            Node1 = obj.nodeCost(:,1);
-            P1 = obj.edgeLabel(:,:,1);
-            [Node2, P2] = InteriorNode(obj, Node1, P1, 2);
-            [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
-            [point, d] = FindMin(obj, Node3, P3, 4);
-        end
-        %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
-        
-        %%%%%%%%%%%%%%%%%%%%%%%% PUBLIC METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
+
         function [point, d] = decode(obj, x)
-            W = obj.edgeLabelLength;
-            E = zeros(obj.noOfNodePerStage, 1);
-            S = zeros(obj.noOfNodePerStage, obj.edgeLabelLength);
-            if (obj.flagComplement == 1)
-                for i=1:obj.noOfStage
-                    tA = sum(xor(obj.codeMain, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
-                    tB = sum(xor(obj.codeComplement, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
-                    E(tA<=tB) = tA(tA<=tB);
-                    E(tA>tB) = tB(tA>tB);
-                    S(tA<=tB,:) = obj.codeMain(tA<=tB,:);
-                    S(tA>tB,:) = obj.codeComplement(tA>tB,:);
-                    obj.nodeCost(:,i) = E;
-                    obj.edgeLabel(:,:,i) = S;
-                end
+            if (obj.noOfStage==1)
+                v = repmat(x,obj.noOfNodePerStage,1);
+                e = sum(xor(v, obj.cosetRep),2);
+                [d, idx] = min(e);
+                point = obj.cosetRep(idx,:);
             else
+                W = obj.edgeLabelLength;
+                S = zeros(obj.noOfNodePerStage, obj.edgeLabelLength);
+                E = zeros(obj.noOfNodePerStage,1);
                 for i=1:obj.noOfStage
-                    obj.nodeCost(:,i) = sum(xor(obj.codeMain, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
-                    obj.edgeLabel(:,:,i) = obj.codeMain;
+                    tx = repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1);
+                    T = mod(tx + obj.cosetRep,2);
+                    for j=1:obj.noOfNodePerStage
+                        [v, d] = decode(obj.baseRM, T(j,:));
+                        E(j) = d;
+                        S(j,:) = v;
+                    end
+                    obj.nodeCost(:,i) = E;
+                    obj.edgeLabel(:,:,i) = mod(S + obj.cosetRep,2);
                 end
+                
+                Node1 = obj.nodeCost(:,1);
+                P1 = obj.edgeLabel(:,:,1);
+                [Node2, P2] = InteriorNode(obj, Node1, P1, 2);
+                [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
+                [point, d] = FindMin(obj, Node3, P3, 4);
             end
-            Node1 = obj.nodeCost(:,1);
-            P1 = obj.edgeLabel(:,:,1);
-            [Node2, P2] = InteriorNode(obj, Node1, P1, 2);
-            [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
-            [point, d] = FindMin(obj, Node3, P3, 4);
-        end
-    end
-    
+        end       
+    end    
     %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
     methods (Access = private)
+        function obj = init_1(obj, m)
+            obj.N = 2^m;
+            obj.noOfStage = 1;
+            obj.noOfNodePerStage = 1;
+            obj.cosetRep = zeros(1,obj.N);
+        end
+        
+        function obj = init_0(obj, m)
+            obj.N = 2^m;
+            obj.noOfStage = 1;
+            obj.noOfNodePerStage = 2;
+            obj.cosetRep = [zeros(1,obj.N); ones(1,obj.N)];
+        end
+        
         function obj = init84(obj)
-            obj.codeMain = [
+            obj.cosetRep = [
                 0 0;
                 1 1;
                 0 1;
@@ -102,18 +97,18 @@ classdef RM
                 1 2;
                 2 1
                 ];
-            obj.flagComplement = 0;
+            obj.baseRM = RM(-1,1);
             obj.N = 2^3;
             obj.noOfNodePerStage = 4;
             obj.noOfNodePerClique = 2;
             obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/4;
-            %             obj.codeComplement = xor(obj.codeMain, repmat(zeros(size(obj.codeMain(1,:))), obj.noOfNodePerStage, 1));
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
+            obj.edgeLabelLength = obj.N/obj.noOfStage;
+            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
+        
         function obj = init1605(obj)
-            obj.codeMain = [
+            obj.cosetRep = [
                 0 0 0 0;
                 1 1 1 1;
                 0 0 1 1;
@@ -127,16 +122,16 @@ classdef RM
                 1 2;
                 2 1
                 ];
-            obj.flagComplement = 0;
+            obj.baseRM = RM(-1,2);
             obj.N = 2^4;
             obj.noOfNodePerStage = 8;
             obj.noOfNodePerClique = 2;
             obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/4;
-            %             obj.codeComplement = xor(obj.codeMain, repmat(zeros(size(obj.codeMain(1,:))), obj.noOfNodePerStage, 1));
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
+            obj.edgeLabelLength = obj.N/obj.noOfStage;
+            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
+        
         function obj = init1611(obj)
             obj.codeMain = [
                 0 0 0 0;
@@ -192,8 +187,7 @@ classdef RM
             obj.noOfNodePerStage = 16;
             obj.noOfNodePerClique = 2;
             obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/4;
-            %             obj.codeComplement = xor(obj.codeMain, repmat(zeros(size(obj.codeMain(1,:))), obj.noOfNodePerStage, 1));
+            obj.edgeLabelLength = obj.N/4;            
             obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
@@ -283,7 +277,6 @@ classdef RM
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
-        
         function [Node, P] = InteriorNode(obj, prevNode, prevPath, ind)
             E = obj.nodeCost(:,ind);
             S = obj.edgeLabel(:,:,ind);
@@ -315,3 +308,33 @@ classdef RM
         
     end
 end
+
+
+        %%%%%%%%%%%%%%%%%%%%%%%% PUBLIC METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
+%         function [point, d] = decodeOld(obj, x)
+%             W = obj.edgeLabelLength;
+%             E = zeros(obj.noOfNodePerStage, 1);
+%             S = zeros(obj.noOfNodePerStage, obj.edgeLabelLength);
+%             if (obj.flagComplement == 1)
+%                 for i=1:obj.noOfStage
+%                     tA = sum(xor(obj.codeMain, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
+%                     tB = sum(xor(obj.codeComplement, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
+%                     E(tA<=tB) = tA(tA<=tB);
+%                     E(tA>tB) = tB(tA>tB);
+%                     S(tA<=tB,:) = obj.codeMain(tA<=tB,:);
+%                     S(tA>tB,:) = obj.codeComplement(tA>tB,:);
+%                     obj.nodeCost(:,i) = E;
+%                     obj.edgeLabel(:,:,i) = S;
+%                 end
+%             else
+%                 for i=1:obj.noOfStage
+%                     obj.nodeCost(:,i) = sum(xor(obj.codeMain, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
+%                     obj.edgeLabel(:,:,i) = obj.codeMain;
+%                 end
+%             end
+%             Node1 = obj.nodeCost(:,1);
+%             P1 = obj.edgeLabel(:,:,1);
+%             [Node2, P2] = InteriorNode(obj, Node1, P1, 2);
+%             [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
+%             [point, d] = FindMin(obj, Node3, P3, 4);
+%         end
