@@ -1,8 +1,11 @@
 classdef RM
     properties (Access = private)
-        codeMain; % A
-        flagComplement;
-        codeComplement; % B
+        flagBoundary = 0;
+        noOfStage = 4;   
+        
+        baseRM;
+        cosetRep; 
+        
         nodeCost; % E
         edgeLabel; % S
         N; % dimension of vector 2^m
@@ -11,24 +14,21 @@ classdef RM
         noOfClique; % noOfNodePerStage/noOfNodePerClique
         nodeEdgeOrder;
         edgeLabelLength; % N/4
-        noOfStage = 4;
-        
-        baseRM;
-        cosetRep;
     end
-    methods
-    %%%%%%%%%%%%%%%%%%%%%%%% CONSTRUCTOR METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%% CONSTRUCTOR and PUBLIC METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
+    methods (Access = public)
         function obj = RM(r, m)
             if (r==-1)
                 obj= obj.init_1(m);
             elseif (r==0)
                 obj = obj.init_0(m);
-            elseif (r==2) && (m==4)
-                obj = obj.init1611();
+            elseif (r==1) && (m==3)
+                obj = obj.init84();                
             elseif (r==1) && (m==4)
                 obj = obj.init1605();
-            elseif (r==1) && (m==3)
-                obj = obj.init84();
+            elseif (r==2) && (m==4)
+                obj = obj.init1611();
             elseif (r==1) && (m==5)
                 obj = obj.init3206();
             elseif (r==2) && (m==5)
@@ -39,9 +39,9 @@ classdef RM
                 obj = obj.init1611();
             end
         end
-
+        
         function [point, d] = decode(obj, x)
-            if (obj.noOfStage==1)
+            if (obj.flagBoundary==1)
                 v = repmat(x,obj.noOfNodePerStage,1);
                 e = sum(xor(v, obj.cosetRep),2);
                 [d, idx] = min(e);
@@ -68,11 +68,12 @@ classdef RM
                 [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
                 [point, d] = FindMin(obj, Node3, P3, 4);
             end
-        end       
-    end    
-    %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
+        end
+    end
+%%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
     methods (Access = private)
         function obj = init_1(obj, m)
+            obj.flagBoundary = 1;
             obj.N = 2^m;
             obj.noOfStage = 1;
             obj.noOfNodePerStage = 1;
@@ -80,6 +81,7 @@ classdef RM
         end
         
         function obj = init_0(obj, m)
+            obj.flagBoundary = 1;            
             obj.N = 2^m;
             obj.noOfStage = 1;
             obj.noOfNodePerStage = 2;
@@ -156,7 +158,7 @@ classdef RM
             obj.edgeLabelLength = obj.N/obj.noOfStage;
             obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
-        end            
+        end
         
         function obj = init3206(obj)
             obj.cosetRep = [
@@ -189,10 +191,9 @@ classdef RM
             obj.edgeLabelLength = obj.N/obj.noOfStage;
             obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
-        end 
-                
+        end
+        
         function obj = init3216(obj)
-            obj.flagComplement = 1;
             A = [
                 0 0 0 0 0 0 0 0;
                 0 0 0 0 1 1 1 1;
@@ -204,7 +205,6 @@ classdef RM
                 0 1 1 0 1 0 0 1;
                 ];
             A = repmat(A,8,1);
-            B = xor(A,ones(size(A)));
             cosetRM87RM84 = kron([
                 0 0 0 0 0 0 0 0;
                 0 0 0 0 0 0 1 1;
@@ -215,9 +215,7 @@ classdef RM
                 0 0 0 1 0 0 1 0;
                 0 0 0 1 0 1 1 1;
                 ], [1 1 1 1 1 1 1 1]');
-            
-            obj.codeMain = mod(A + cosetRM87RM84,2);
-            obj.codeComplement = mod(B + cosetRM87RM84,2);
+            obj.cosetRep = mod(A + cosetRM87RM84,2);
             obj.nodeEdgeOrder = [
                 1 2 3 4 5 6 7 8;
                 2 1 4 3 6 5 8 7;
@@ -228,12 +226,13 @@ classdef RM
                 7 8 5 6 3 4 1 2;
                 8 7 6 5 4 3 2 1
                 ];
+            obj.baseRM = RM(0,3);
             obj.N = 2^5;
             obj.noOfNodePerStage = 64;
             obj.noOfNodePerClique = 8;
             obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/4;
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
+            obj.edgeLabelLength = obj.N/obj.noOfStage;
+            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
@@ -307,33 +306,3 @@ classdef RM
         
     end
 end
-
-
-        %%%%%%%%%%%%%%%%%%%%%%%% PUBLIC METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
-%         function [point, d] = decodeOld(obj, x)
-%             W = obj.edgeLabelLength;
-%             E = zeros(obj.noOfNodePerStage, 1);
-%             S = zeros(obj.noOfNodePerStage, obj.edgeLabelLength);
-%             if (obj.flagComplement == 1)
-%                 for i=1:obj.noOfStage
-%                     tA = sum(xor(obj.codeMain, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
-%                     tB = sum(xor(obj.codeComplement, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
-%                     E(tA<=tB) = tA(tA<=tB);
-%                     E(tA>tB) = tB(tA>tB);
-%                     S(tA<=tB,:) = obj.codeMain(tA<=tB,:);
-%                     S(tA>tB,:) = obj.codeComplement(tA>tB,:);
-%                     obj.nodeCost(:,i) = E;
-%                     obj.edgeLabel(:,:,i) = S;
-%                 end
-%             else
-%                 for i=1:obj.noOfStage
-%                     obj.nodeCost(:,i) = sum(xor(obj.codeMain, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
-%                     obj.edgeLabel(:,:,i) = obj.codeMain;
-%                 end
-%             end
-%             Node1 = obj.nodeCost(:,1);
-%             P1 = obj.edgeLabel(:,:,1);
-%             [Node2, P2] = InteriorNode(obj, Node1, P1, 2);
-%             [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
-%             [point, d] = FindMin(obj, Node3, P3, 4);
-%         end

@@ -1,4 +1,4 @@
-function [G, Gc, C] = GenerateCodewordsRM(r,n)
+function [G, Gc, C] = GenerateCodewordsRM(r,n, inc)
 % G is the generator matrix, C is the codeword matrix Gc complementary
 % generator matrix
 B = [0 1; 1 1];
@@ -25,7 +25,7 @@ for i=1:N
         G(j,:) = B(i,:);
     end
 end
-NC = 2^K;
+NC = round(2^K/inc);
 C = zeros(NC,N);
 for i=0:NC-1
     v = de2bi(i,K);
