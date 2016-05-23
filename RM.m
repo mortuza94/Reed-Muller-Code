@@ -159,7 +159,7 @@ classdef RM
         end            
         
         function obj = init3206(obj)
-            obj.codeMain = [
+            obj.cosetRep = [
                 0 0 0 0 0 0 0 0;
                 1 1 1 1 1 1 1 1;
                 0 0 0 0 1 1 1 1;
@@ -181,16 +181,16 @@ classdef RM
                 1 2;
                 2 1
                 ];
-            obj.flagComplement = 0;
+            obj.baseRM = RM(-1,3);
             obj.N = 2^5;
             obj.noOfNodePerStage = 16;
             obj.noOfNodePerClique = 2;
             obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/4;            
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
+            obj.edgeLabelLength = obj.N/obj.noOfStage;
+            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
-        end
-        
+        end 
+                
         function obj = init3216(obj)
             obj.flagComplement = 1;
             A = [
