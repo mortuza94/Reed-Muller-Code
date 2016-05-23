@@ -1,6 +1,7 @@
 classdef RM
     properties (Access = private)
         codeMain; % A
+        flagComplement;
         codeComplement; % B
         nodeCost; % E
         edgeLabel; % S
@@ -8,30 +9,44 @@ classdef RM
         noOfNodePerStage; % number of node in each stage
         noOfNodePerClique; % number of clique
         noOfClique; % noOfNodePerStage/noOfNodePerClique
+        nodeEdgeOrder;
         edgeLabelLength; % N/4
         noOfStage = 4;
     end
     methods
+        %%%%%%%%%%%%%%%%%%%%%%%% CONSTRUCTOR METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
         function obj = RM(r, m)
             if (r==2) && (m==4)
                 obj = obj.init1611();
+            elseif (r==1) && (m==4)
+                obj = obj.init1605();
+            elseif (r==1) && (m==3)
+                obj = obj.init84();
             else
                 obj = obj.init1611();
             end
         end
+        %%%%%%%%%%%%%%%%%%%%%%%% PUBLIC METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
         function [point, d] = decode(obj, x)
             W = obj.edgeLabelLength;
             E = zeros(obj.noOfNodePerStage, 1);
             S = zeros(obj.noOfNodePerStage, obj.edgeLabelLength);
-            for i=1:obj.noOfStage
-                tA = sum(xor(obj.codeMain, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
-                tB = sum(xor(obj.codeComplement, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
-                E(tA<=tB) = tA(tA<=tB);
-                E(tA>tB) = tB(tA>tB);
-                S(tA<=tB,:) = obj.codeMain(tA<=tB,:);
-                S(tA>tB,:) = obj.codeComplement(tA>tB,:);
-                obj.nodeCost(:,i) = E;
-                obj.edgeLabel(:,:,i) = S;
+            if (obj.flagComplement == 1)
+                for i=1:obj.noOfStage
+                    tA = sum(xor(obj.codeMain, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
+                    tB = sum(xor(obj.codeComplement, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
+                    E(tA<=tB) = tA(tA<=tB);
+                    E(tA>tB) = tB(tA>tB);
+                    S(tA<=tB,:) = obj.codeMain(tA<=tB,:);
+                    S(tA>tB,:) = obj.codeComplement(tA>tB,:);
+                    obj.nodeCost(:,i) = E;
+                    obj.edgeLabel(:,:,i) = S;
+                end
+            else
+                for i=1:obj.noOfStage
+                    obj.nodeCost(:,i) = sum(xor(obj.codeMain, repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)),2);
+                    obj.edgeLabel(:,:,i) = obj.codeMain;
+                end
             end
             Node1 = obj.nodeCost(:,1);
             P1 = obj.edgeLabel(:,:,1);
@@ -40,7 +55,54 @@ classdef RM
             [d, point] = FindMin(obj, Node3, P3, 4);
         end
     end
+    %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
     methods (Access = private)
+        function obj = init84(obj)
+            obj.codeMain = [
+                0 0;
+                1 1;
+                0 1;
+                1 0
+                ];
+            obj.nodeEdgeOrder = [
+                1 2;
+                2 1
+                ];
+            obj.flagComplement = 0;
+            obj.N = 2^3;
+            obj.noOfNodePerStage = 4;
+            obj.noOfNodePerClique = 2;
+            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
+            obj.edgeLabelLength = obj.N/4;
+            %             obj.codeComplement = xor(obj.codeMain, repmat(zeros(size(obj.codeMain(1,:))), obj.noOfNodePerStage, 1));
+            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
+            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
+        end
+        function obj = init1605(obj)
+            obj.codeMain = [
+                0 0 0 0;
+                1 1 1 1;
+                0 0 1 1;
+                1 1 0 0;
+                0 1 0 1;
+                1 0 1 0;
+                0 1 1 0;
+                1 0 0 1
+                ];
+            obj.nodeEdgeOrder = [
+                1 2;
+                2 1
+                ];
+            obj.flagComplement = 0;
+            obj.N = 2^4;
+            obj.noOfNodePerStage = 8;
+            obj.noOfNodePerClique = 2;
+            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
+            obj.edgeLabelLength = obj.N/4;
+            %             obj.codeComplement = xor(obj.codeMain, repmat(zeros(size(obj.codeMain(1,:))), obj.noOfNodePerStage, 1));
+            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
+            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
+        end
         function obj = init1611(obj)
             obj.codeMain = [
                 0 0 0 0;
@@ -52,6 +114,12 @@ classdef RM
                 0 1 0 0;
                 0 1 1 1
                 ];
+            obj.nodeEdgeOrder = [
+                1 2 3 4;
+                2 1 4 3;
+                3 4 1 2;
+                4 3 2 1];
+            obj.flagComplement = 1;
             obj.N = 2^4;
             obj.noOfNodePerStage = 8;
             obj.noOfNodePerClique = 4;
@@ -75,11 +143,11 @@ classdef RM
                 curS = S(d+1:d+CS,:);
                 for i=1:CS
                     k = d + i;
-                    tE =  circshift(curE,i-1);
+                    tE = curE(obj.nodeEdgeOrder(:,i));
+                    tS = curS(obj.nodeEdgeOrder(:,i),:);
                     [e, idx] = min(prevVec + tE);
                     Node(k) = e;
-                    tS = circshift(curS,i-1);
-                    P(k,:) = [prevPath(idx,:) tS(idx,:)];
+                    P(k,:) = [prevPath(d+idx,:) tS(idx,:)];
                 end
             end
         end

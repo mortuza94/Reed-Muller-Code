@@ -49,7 +49,6 @@ E4(tA4<=tB4) = tA4(tA4<=tB4);
 E4(tA4>tB4) = tB4(tA4>tB4);
 S4(tA4<=tB4,:) = A(tA4<=tB4,:);
 S4(tA4>tB4,:) = B(tA4>tB4,:);
-
 Node1 = E1;
 P1 = S1;
 [Node2, P2] = InteriorNode(Node1, E2, P1, S2);
