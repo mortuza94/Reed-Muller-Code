@@ -1,6 +1,6 @@
 
 function Test
-r = 1;
+r = 2;
 m = 4;
 N = 2^m;
 ecr = 2^(m-r)/2-1; % error correcting radius of RM(r,m) code
