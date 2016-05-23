@@ -1,6 +1,7 @@
 classdef RM
     properties (Access = private)
         codeMain; % A
+        codeBase;
         flagComplement;
         codeComplement; % B
         nodeCost; % E
@@ -22,6 +23,10 @@ classdef RM
                 obj = obj.init1605();
             elseif (r==1) && (m==3)
                 obj = obj.init84();
+            elseif (r==1) && (m==5)
+                obj = obj.init3206();
+            elseif (r==2) && (m==5)
+                obj = obj.init3216();
             else
                 obj = obj.init1611();
             end
@@ -52,7 +57,7 @@ classdef RM
             P1 = obj.edgeLabel(:,:,1);
             [Node2, P2] = InteriorNode(obj, Node1, P1, 2);
             [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
-            [d, point] = FindMin(obj, Node3, P3, 4);
+            [point, d] = FindMin(obj, Node3, P3, 4);
         end
     end
     %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -130,6 +135,86 @@ classdef RM
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
+        function obj = init3206(obj)
+            obj.codeMain = [
+                 0 0 0 0 0 0 0 0;
+                 1 1 1 1 1 1 1 1;
+                 0 0 0 0 1 1 1 1;
+                 1 1 1 1 0 0 0 0;
+                 0 0 1 1 0 0 1 1;
+                 1 1 0 0 1 1 0 0; 
+                 0 0 1 1 1 1 0 0;
+                 1 1 0 0 0 0 1 1;
+                 0 1 0 1 0 1 0 1; 
+                 1 0 1 0 1 0 1 0;
+                 0 1 0 1 1 0 1 0;
+                 1 0 1 0 0 1 0 1;
+                 0 1 1 0 0 1 1 0; 
+                 1 0 0 1 1 0 0 1;
+                 0 1 1 0 1 0 0 1;
+                 1 0 0 1 0 1 1 0 
+                ];
+            obj.nodeEdgeOrder = [
+                1 2;
+                2 1
+                ];
+            obj.flagComplement = 0;
+            obj.N = 2^5;
+            obj.noOfNodePerStage = 16;
+            obj.noOfNodePerClique = 2;
+            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
+            obj.edgeLabelLength = obj.N/4;
+            %             obj.codeComplement = xor(obj.codeMain, repmat(zeros(size(obj.codeMain(1,:))), obj.noOfNodePerStage, 1));
+            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
+            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
+        end
+
+        function obj = init3216(obj)
+            obj.flagComplement = 1;            
+            A = [
+             0 0 0 0 0 0 0 0;
+             0 0 0 0 1 1 1 1;
+             0 0 1 1 0 0 1 1;
+             0 0 1 1 1 1 0 0;
+             0 1 0 1 0 1 0 1;
+             0 1 0 1 1 0 1 0;
+             0 1 1 0 0 1 1 0;
+             0 1 1 0 1 0 0 1;    
+            ];
+            A = repmat(A,8,1);
+            B = xor(A,ones(size(A)));
+            cosetRM87RM84 = kron([
+                0 0 0 0 0 0 0 0;
+                0 0 0 0 0 0 1 1;
+                0 0 0 0 0 1 0 1;
+                0 0 0 1 0 0 0 1;
+                0 0 0 0 0 1 1 0;
+                0 0 0 1 0 1 0 0;
+                0 0 0 1 0 0 1 0;
+                0 0 0 1 0 1 1 1;
+                ], [1 1 1 1 1 1 1 1]');
+
+            obj.codeMain = mod(A + cosetRM87RM84,2);
+            obj.codeComplement = mod(B + cosetRM87RM84,2);            
+            obj.nodeEdgeOrder = [
+                1 2 3 4 5 6 7 8;
+                2 1 4 3 6 5 8 7;
+                3 4 1 2 7 8 5 6;
+                4 3 2 1 8 7 6 5;
+                5 6 7 8 1 2 3 4;
+                6 5 8 7 2 1 4 3;
+                7 8 5 6 3 4 1 2;
+                8 7 6 5 4 3 2 1          
+                ];
+            obj.N = 2^5;
+            obj.noOfNodePerStage = 64;
+            obj.noOfNodePerClique = 8;
+            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
+            obj.edgeLabelLength = obj.N/4;                        
+            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
+            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
+        end
+                
         function [Node, P] = InteriorNode(obj, prevNode, prevPath, ind)
             E = obj.nodeCost(:,ind);
             S = obj.edgeLabel(:,:,ind);
@@ -152,7 +237,7 @@ classdef RM
             end
         end
         
-        function [minVal, P] = FindMin(obj, PrevNode, PrevPath, ind)
+        function [P, minVal] = FindMin(obj, PrevNode, PrevPath, ind)
             E = obj.nodeCost(:,ind);
             S = obj.edgeLabel(:,:,ind);
             [minVal, idx] = min(PrevNode + E);
