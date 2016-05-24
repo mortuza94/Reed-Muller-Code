@@ -1,15 +1,15 @@
-function [G, Gc] = getGeneratorMatrixRM(r,n)
+function [G, Gc] = getGeneratorMatrixRM(r,m)
 % G is the generator matrix and Gc complementary generator matrix
 B = [0 1; 1 1];
 C = B;
-for i=2:n
+for i=2:m
     B = kron(B,C);
 end
-N = 2^n;
-W = 2^(n-r);
+N = 2^m;
+W = 2^(m-r);
 K = 0;
 for k=0:r
-    K = K + nchoosek(n, k);
+    K = K + nchoosek(m, k);
 end
 G = zeros(K,N);
 Gc = zeros(N-K,N);

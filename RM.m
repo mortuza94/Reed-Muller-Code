@@ -2,20 +2,17 @@ classdef RM
     properties (Access = private)
         flagBoundary = 0;
         noOfStage = 4; % default is 4; for RM(-1,m) and RM(0,m) noOfStage = 1
-        
-        baseRM;
-        cosetRep;
-        nodeCost;
-        edgeLabel;    
-        
-        G; % Generator matrix        
+        baseRM; % in the squaring construction S/U/T base RM corr. T
+        cosetRep; % labelleing of the edges with the coset rep for the partition S/T
+        nodeCost; % store partial path cost
+        edgeLabel; % stores optimal path labelling
+        G; % Generator matrix for RM(r,m)
         N; % dimension of vector 2^m
-        
         noOfNodePerStage = 1; % number of node in each stage
         noOfNodePerClique = 1; % number of clique
         noOfClique; % noOfNodePerStage/noOfNodePerClique
-        nodeEdgeOrder;
-        edgeLabelLength; % N/4
+        nodeEdgeOrder; % specify how the nodes in a clique are connected
+        edgeLabelLength; % for non-boundary RM(r,m) it should be N/4
     end
     %%%%%%%%%%%%%%%%%%%%%%%% CONSTRUCTOR and PUBLIC METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
     methods (Access = public)
@@ -45,18 +42,19 @@ classdef RM
         
         function [point, d] = decode(obj, x)
             switch obj.flagBoundary
-                case 1
-                    v = repmat(x,obj.noOfNodePerStage,1);
-                    e = sum((v-obj.cosetRep).^2,2);
-                    [d, idx] = min(e);
+                case 1 % obj.cosetRep contains the list of codewords
+                    bx = x - 2*floor(x/2);
+                    T = repmat(bx,obj.noOfNodePerStage,1);
+                    e = sum((T - obj.cosetRep).^2,2);
+                    [~, idx] = min(e);
                     point = obj.cosetRep(idx,:);
                 case 0
                     W = obj.edgeLabelLength;
                     S = zeros(obj.noOfNodePerStage, obj.edgeLabelLength);
                     E = zeros(obj.noOfNodePerStage,1);
                     for i=1:obj.noOfStage
-                        tx = repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1);
-                        T = mod(tx + obj.cosetRep,2);
+                        segx = repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)+obj.cosetRep;
+                        T = segx - 2*floor(segx/2);
                         for j=1:obj.noOfNodePerStage
                             [v, d] = decode(obj.baseRM, T(j,:));
                             E(j) = d;
@@ -69,7 +67,7 @@ classdef RM
                     P1 = obj.edgeLabel(:,:,1);
                     [Node2, P2] = InteriorNode(obj, Node1, P1, 2);
                     [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
-                    [point, d] = FindMin(obj, Node3, P3, 4);
+                    [point, ~] = FindMin(obj, Node3, P3, 4);
                 case -1
                     rx = round(x);
                     if mod(sum(rx),2) == 0
@@ -80,8 +78,8 @@ classdef RM
                         rx(idx) = xor(rx(idx),1);
                         point = mod(rx,2);
                     end
-                    d = sum((x-point).^2);
             end
+            d = sum((x-point).^2);
         end
     end
     %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -89,14 +87,14 @@ classdef RM
         
         function obj = initPre(obj, r, m)
             obj.N = 2^m;
-            obj.G = getGeneratorMatrixRM(r,m);            
+            obj.G = getGeneratorMatrixRM(r,m);
         end
         
         function obj = initPost(obj)
             obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
             obj.edgeLabelLength = obj.N/obj.noOfStage;
             obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
-            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);            
+            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
         function obj = init_1(obj)
@@ -104,7 +102,7 @@ classdef RM
             obj.noOfNodePerStage = 1;
             obj.noOfStage = 1;
             obj.cosetRep = zeros(1,obj.N);
-
+            
         end
         
         function obj = init_0(obj)
@@ -112,11 +110,11 @@ classdef RM
             obj.noOfNodePerStage = 2;
             obj.noOfStage = 1;
             obj.cosetRep = [zeros(1,obj.N); ones(1,obj.N)];
-         end
+        end
         
         function obj = initm_1m(obj)
             obj.flagBoundary = -1;
-            obj.noOfStage = 1;            
+            obj.noOfStage = 1;
         end
         
         function obj = init84(obj)
@@ -303,6 +301,6 @@ classdef RM
             S = obj.edgeLabel(:,:,ind);
             [minVal, idx] = min(PrevNode + E);
             P = [PrevPath(idx,:) S(idx,:)];
-        end        
+        end
     end
 end
