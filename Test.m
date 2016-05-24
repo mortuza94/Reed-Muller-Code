@@ -1,16 +1,17 @@
 
 function Test
 r = 2;
-m = 4;
-N = 2^m;
-skip = 2^2;
+m = 5;
 ecr = 2^(m-r)/2-1; % error correcting radius of RM(r,m) code
-[~, ~, C] = GenerateCodewordsRM(r,m, skip);
+[G, ~] = getGeneratorMatrixRM(r,m);
+[K, N] = size(G);
+NC = 2^K; % number of codeworkds
+noCodewordTest = 2^10; % maximum number of codewords to test
+inc = max(1,round(NC/noCodewordTest));
 rm = RM(r,m);
-[NC,~] = size(C);
-inc = max(1, round(NC/2^10)); % test maximum 1024 instances
-for i=1:inc:NC
-    x = C(i,:);
+for i=0:inc:NC-1
+    v = de2bi(i,K);
+    x = mod(v*G, 2);
     e = zeros(1,N);
     e(randi(N, 1, ecr)) = 1; % introduces d_min/2-1 errors
     xe = x + e;

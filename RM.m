@@ -1,28 +1,30 @@
 classdef RM
     properties (Access = private)
         flagBoundary = 0;
-        noOfStage = 4;
+        noOfStage = 4; % default is 4; for RM(-1,m) and RM(0,m) noOfStage = 1
         
         baseRM;
         cosetRep;
         nodeCost;
-        edgeLabel;
+        edgeLabel;    
         
+        G; % Generator matrix        
         N; % dimension of vector 2^m
-        noOfNodePerStage; % number of node in each stage
-        noOfNodePerClique; % number of clique
+        
+        noOfNodePerStage = 1; % number of node in each stage
+        noOfNodePerClique = 1; % number of clique
         noOfClique; % noOfNodePerStage/noOfNodePerClique
         nodeEdgeOrder;
         edgeLabelLength; % N/4
     end
-    
     %%%%%%%%%%%%%%%%%%%%%%%% CONSTRUCTOR and PUBLIC METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
     methods (Access = public)
         function obj = RM(r, m)
+            obj = obj.initPre(r, m);
             if (r==-1)
-                obj= obj.init_1(m);
+                obj= obj.init_1();
             elseif (r==0)
-                obj = obj.init_0(m);
+                obj = obj.init_0();
             elseif (r==1) && (m==3)
                 obj = obj.init84();
             elseif (r==1) && (m==4)
@@ -38,21 +40,11 @@ classdef RM
             else
                 obj = obj.initm_1m();
             end
+            obj = obj.initPost();
         end
         
         function [point, d] = decode(obj, x)
             switch obj.flagBoundary
-                case -1
-                    rx = round(x);
-                    if mod(sum(rx),2) == 0
-                        point = mod(rx,2);
-                    else
-                        [~, idx] = max(abs(x-rx));
-                        rx = mod(rx,2);
-                        rx(idx) = xor(rx(idx),1);
-                        point = mod(rx,2);
-                    end
-                    d = sum((x-point).^2);
                 case 1
                     v = repmat(x,obj.noOfNodePerStage,1);
                     e = sum((v-obj.cosetRep).^2,2);
@@ -78,29 +70,53 @@ classdef RM
                     [Node2, P2] = InteriorNode(obj, Node1, P1, 2);
                     [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
                     [point, d] = FindMin(obj, Node3, P3, 4);
+                case -1
+                    rx = round(x);
+                    if mod(sum(rx),2) == 0
+                        point = mod(rx,2);
+                    else
+                        [~, idx] = max(abs(x-rx));
+                        rx = mod(rx,2);
+                        rx(idx) = xor(rx(idx),1);
+                        point = mod(rx,2);
+                    end
+                    d = sum((x-point).^2);
             end
         end
     end
     %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
     methods (Access = private)
-        function obj = init_1(obj, m)
-            obj.flagBoundary = 1;
+        
+        function obj = initPre(obj, r, m)
             obj.N = 2^m;
-            obj.noOfStage = 1;
-            obj.noOfNodePerStage = 1;
-            obj.cosetRep = zeros(1,obj.N);
+            obj.G = getGeneratorMatrixRM(r,m);            
         end
         
-        function obj = init_0(obj, m)
-            obj.flagBoundary = 1;
-            obj.N = 2^m;
-            obj.noOfStage = 1;
-            obj.noOfNodePerStage = 2;
-            obj.cosetRep = [zeros(1,obj.N); ones(1,obj.N)];
+        function obj = initPost(obj)
+            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
+            obj.edgeLabelLength = obj.N/obj.noOfStage;
+            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
+            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);            
         end
+        
+        function obj = init_1(obj)
+            obj.flagBoundary = 1;
+            obj.noOfNodePerStage = 1;
+            obj.noOfStage = 1;
+            obj.cosetRep = zeros(1,obj.N);
+
+        end
+        
+        function obj = init_0(obj)
+            obj.flagBoundary = 1;
+            obj.noOfNodePerStage = 2;
+            obj.noOfStage = 1;
+            obj.cosetRep = [zeros(1,obj.N); ones(1,obj.N)];
+         end
         
         function obj = initm_1m(obj)
             obj.flagBoundary = -1;
+            obj.noOfStage = 1;            
         end
         
         function obj = init84(obj)
@@ -115,13 +131,8 @@ classdef RM
                 2 1
                 ];
             obj.baseRM = RM(-1,1);
-            obj.N = 2^3;
             obj.noOfNodePerStage = 4;
             obj.noOfNodePerClique = 2;
-            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/obj.noOfStage;
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
-            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
         function obj = init1605(obj)
@@ -140,13 +151,8 @@ classdef RM
                 2 1
                 ];
             obj.baseRM = RM(-1,2);
-            obj.N = 2^4;
             obj.noOfNodePerStage = 8;
             obj.noOfNodePerClique = 2;
-            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/obj.noOfStage;
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
-            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
         function obj = init1611(obj)
@@ -166,13 +172,8 @@ classdef RM
                 3 4 1 2;
                 4 3 2 1];
             obj.baseRM = RM(0,2);
-            obj.N = 2^4;
             obj.noOfNodePerStage = 8;
             obj.noOfNodePerClique = 4;
-            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/obj.noOfStage;
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
-            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
         function obj = init3206(obj)
@@ -199,13 +200,8 @@ classdef RM
                 2 1
                 ];
             obj.baseRM = RM(-1,3);
-            obj.N = 2^5;
             obj.noOfNodePerStage = 16;
             obj.noOfNodePerClique = 2;
-            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/obj.noOfStage;
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
-            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
         function obj = init3216(obj)
@@ -242,13 +238,8 @@ classdef RM
                 8 7 6 5 4 3 2 1
                 ];
             obj.baseRM = RM(0,3);
-            obj.N = 2^5;
             obj.noOfNodePerStage = 64;
             obj.noOfNodePerClique = 8;
-            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/obj.noOfStage;
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
-            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
         function obj = init3226(obj)
@@ -281,13 +272,8 @@ classdef RM
                 8 7 6 5 4 3 2 1
                 ];
             obj.baseRM = RM(1,3);
-            obj.N = 2^5;
             obj.noOfNodePerStage = 16;
             obj.noOfNodePerClique = 8;
-            obj.noOfClique = obj.noOfNodePerStage/obj.noOfNodePerClique;
-            obj.edgeLabelLength = obj.N/4;
-            obj.nodeCost = zeros(obj.noOfNodePerStage,obj.edgeLabelLength);
-            obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
         
         function [Node, P] = InteriorNode(obj, prevNode, prevPath, ind)
@@ -317,7 +303,6 @@ classdef RM
             S = obj.edgeLabel(:,:,ind);
             [minVal, idx] = min(PrevNode + E);
             P = [PrevPath(idx,:) S(idx,:)];
-        end
-        
+        end        
     end
 end
