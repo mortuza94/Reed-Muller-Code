@@ -40,46 +40,50 @@ classdef RM
             obj = obj.initPost();
         end
         
-        function [point, d] = decode(obj, x)
+        function [point, d] = decode(obj, r)
             switch obj.flagBoundary
                 case 1 % obj.cosetRep contains the list of codewords
-                    bx = x - 2*floor(x/2);
-                    T = repmat(bx,obj.noOfNodePerStage,1);
-                    e = sum((T - obj.cosetRep).^2,2);
-                    [~, idx] = min(e);
+                    c = r - 2*floor(r/2); % r = 2Z + c
+                    M = repmat(c,obj.noOfNodePerStage,1);
+                    E = sum((M - obj.cosetRep).^2,2);
+                    [~, idx] = min(E);
                     point = obj.cosetRep(idx,:);
                 case 0
-                    W = obj.edgeLabelLength;
-                    S = zeros(obj.noOfNodePerStage, obj.edgeLabelLength);
+                    L = obj.edgeLabelLength;
+                    P = zeros(obj.noOfNodePerStage, obj.edgeLabelLength);
                     E = zeros(obj.noOfNodePerStage,1);
                     for i=1:obj.noOfStage
-                        segx = repmat(x(1+(i-1)*W:i*W),obj.noOfNodePerStage,1)+obj.cosetRep;
-                        T = segx - 2*floor(segx/2);
+                        segr = repmat(r(1+(i-1)*L:i*L),obj.noOfNodePerStage,1)+obj.cosetRep;
+                        M = segr - 2*floor(segr/2);
                         for j=1:obj.noOfNodePerStage
-                            [v, d] = decode(obj.baseRM, T(j,:));
+                            [y, d] = decode(obj.baseRM, M(j,:));
                             E(j) = d;
-                            S(j,:) = v;
+                            P(j,:) = y;
                         end
                         obj.nodeCost(:,i) = E;
-                        obj.edgeLabel(:,:,i) = mod(S + obj.cosetRep,2);
+                        obj.edgeLabel(:,:,i) = mod(P + obj.cosetRep,2);
                     end
-                    Node1 = obj.nodeCost(:,1);
-                    P1 = obj.edgeLabel(:,:,1);
-                    [Node2, P2] = InteriorNode(obj, Node1, P1, 2);
-                    [Node3, P3] = InteriorNode(obj, Node2, P2, 3);
-                    [point, ~] = FindMin(obj, Node3, P3, 4);
+                    nodeStage1 = obj.nodeCost(:,1);
+                    pathLabel1 = obj.edgeLabel(:,:,1);
+                    [nodeStage2, pathLabel2] = InteriorNode(obj, nodeStage1, pathLabel1, 2);
+                    [nodeStage3, pathLabel3] = InteriorNode(obj, nodeStage2, pathLabel2, 3);
+                    [point, ~] = FindMin(obj, nodeStage3, pathLabel3, 4);
                 case -1
-                    rx = round(x);
-                    if mod(sum(rx),2) == 0
-                        point = mod(rx,2);
+                    rr = round(r);
+                    if mod(sum(rr),2) == 0
+                        point = mod(rr,2);
                     else
-                        [~, idx] = max(abs(x-rx));
-                        rx = mod(rx,2);
-                        rx(idx) = xor(rx(idx),1);
-                        point = mod(rx,2);
+                        [~, idx] = max(abs(r-rr));
+                        rr = mod(rr,2);
+                        rr(idx) = xor(rr(idx),1);
+                        point = mod(rr,2);
                     end
             end
-            d = sum((x-point).^2);
+            d = sum((r-point).^2);
+        end
+        
+        function y = encode(obj,v)
+            y = mod(v*obj.G,2);
         end
     end
     %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
