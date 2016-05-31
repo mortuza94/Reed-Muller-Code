@@ -1,4 +1,4 @@
-function success = Test(r,m,fixedE)
+function success = TestRM(r,m,fixedE)
 rm = RM(r,m);
 [K, N] = getDimensionGeneratorMatrix(rm);
 NC = 2^K; % number of codeworkds

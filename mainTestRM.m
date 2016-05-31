@@ -5,7 +5,7 @@ for m=1:5
         N = 2^m;
         ecr = 2^(m-r-2) - 0.0001;
         fixedE = sqrt(ecr/N);
-        success = Test(r,m,fixedE);
+        success = TestRM(r,m,fixedE);
         disp([r m, success]);
     end
 end
