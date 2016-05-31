@@ -1,13 +1,16 @@
 classdef RM
     properties (Access = private)
-        flagBoundary = 0;
+        r; % order of the Reed Muller code
+        m; % dimenision of Reed Muller code is 2^m
+        N; % dimension of vector 2^m
+        G; % Generator matrix for RM(r,m)        
+        Gc; % Complementary generator matrix
+        flagBoundary = 0; % distinguishes between boundary and non-boundary RM codes 
         noOfStage = 4; % default is 4; for RM(-1,m) and RM(0,m) noOfStage = 1
-        baseRM; % in the squaring construction S/U/T base RM corr. T
+        baseRM; % in the squaring construction S/U/T baseRM corr. T
         cosetRep; % labelleing of the edges with the coset rep for the partition S/T
         nodeCost; % store partial path cost
         edgeLabel; % stores optimal path labelling
-        G; % Generator matrix for RM(r,m)
-        N; % dimension of vector 2^m
         noOfNodePerStage = 1; % number of node in each stage
         noOfNodePerClique = 1; % number of clique
         noOfClique; % noOfNodePerStage/noOfNodePerClique
@@ -39,6 +42,26 @@ classdef RM
             end
             obj = obj.initPost();
         end
+        
+        function G = getGeneratorMatrix(obj)
+            G = obj.G;
+        end
+        
+        function Gc = getComplementaryMatrix(obj)
+            Gc = obj.Gc;
+        end
+        
+        function [K, N] = getDimensionGeneratorMatrix(obj)
+            [K, N] = size(obj.G);
+        end
+        
+        function [Kc, N] = getDimensionComplementaryMatrix(obj)
+            [Kc, N] = size(obj.Gc);
+        end        
+        
+        function y = encode(obj,v)
+            y = mod(v*obj.G,2);
+        end        
         
         function [point, d] = decode(obj, r)
             switch obj.flagBoundary
@@ -81,17 +104,15 @@ classdef RM
             end
             d = sum((r-point).^2);
         end
-        
-        function y = encode(obj,v)
-            y = mod(v*obj.G,2);
-        end
     end
     %%%%%%%%%%%%%%%%%%%%%%%% PRIVATE METHODS %%%%%%%%%%%%%%%%%%%%%%%%%
     methods (Access = private)
         
         function obj = initPre(obj, r, m)
-            obj.N = 2^m;
-            obj.G = getGeneratorMatrixRM(r,m);
+            obj.r = r;
+            obj.m = m;
+            obj.N = 2^(obj.m);
+            [obj.G, obj.Gc] = generateMatrices(obj);
         end
         
         function obj = initPost(obj)
@@ -100,6 +121,33 @@ classdef RM
             obj.nodeCost = zeros(obj.noOfNodePerStage,obj.noOfStage);
             obj.edgeLabel = zeros(obj.noOfNodePerStage,obj.edgeLabelLength,obj.noOfStage);
         end
+        
+        function [G, Gc] = generateMatrices(obj)
+            % G is the generator matrix and Gc complementary generator matrix
+            B = [0 1; 1 1];
+            C = B;
+            for i=2:obj.m
+                B = kron(B,C);
+            end
+            W = 2^(obj.m-obj.r);
+            K = 0;
+            for k=0:obj.r
+                K = K + nchoosek(obj.m, k);
+            end
+            G = zeros(K,obj.N);
+            Gc = zeros(obj.N-K,obj.N);
+            j=0;
+            k=0;
+            for i=1:obj.N
+                if (sum(B(i,:))<W)
+                    k=k+1;
+                    Gc(k,:) = B(i,:);
+                else
+                    j=j+1;
+                    G(j,:) = B(i,:);
+                end
+            end
+        end        
         
         function obj = init_1(obj)
             obj.flagBoundary = 1;
